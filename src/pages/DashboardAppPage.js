@@ -1,9 +1,15 @@
 import { Helmet } from 'react-helmet-async';
 import { faker } from '@faker-js/faker';
+import React, { useEffect, useState } from 'react';
+
 // @mui
 import { useTheme } from '@mui/material/styles';
-import { Grid, Container, Typography, Box } from '@mui/material';
+import { Grid, Container, Typography } from '@mui/material';
+
+import { fDate } from '../utils/formatTime';
+
 // components
+import ExamesList from '../components/exames-list';
 
 // sections
 import {
@@ -16,10 +22,67 @@ import {
   AppConversionRates,
 } from '../sections/@dashboard/app';
 
+import {
+  getDailyProfitPerPeriod,
+  getMonthlyProfitPerPeriod,
+  getExaminedPatients,
+  getProfitPerExam,
+  getTotalProfitForPeriod,
+  getWeeklyProfitPerPeriod,
+} from '../services/DashboardService';
+
 // ----------------------------------------------------------------------
 
 export default function DashboardAppPage() {
   const theme = useTheme();
+
+  const [patients, setPatients] = useState(null);
+  const [totalProfit, setTotalProfit] = useState(0);
+  const [monthlyProfit, setMonthlyProfit] = useState(0);
+  const [weeklyProfit, setWeeklyProfit] = useState(0);
+  const [dailyProfit, setDailyProfit] = useState(0);
+  const [profitPerExam, setProfitPerExam] = useState([]);
+  const [examinedPatients, setExaminedPatients] = useState({ labels: [], aggregate: [] });
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+
+  const handleStartDateChange = (event) => {
+    setStartDate(event.target.value);
+  };
+
+  const handleEndDateChange = (event) => {
+    setEndDate(event.target.value);
+  };
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const now = new Date();
+      const firstDayOfTheMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const lastDayofTheMonth = Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+      setStartDate(fDate(firstDayOfTheMonth, 'yyyy-MM-dd'));
+      setEndDate(fDate(lastDayofTheMonth, 'yyyy-MM-dd'));
+    };
+
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (startDate && endDate) {
+        setTotalProfit(getTotalProfitForPeriod(startDate, endDate));
+        setWeeklyProfit(getWeeklyProfitPerPeriod(startDate, endDate));
+        setMonthlyProfit(getMonthlyProfitPerPeriod(startDate, endDate));
+        setDailyProfit(getDailyProfitPerPeriod(startDate, endDate));
+        setProfitPerExam(getProfitPerExam(startDate, endDate));
+        setExaminedPatients(getExaminedPatients(startDate, endDate));
+      }
+
+      console.log('startDate or endDate changed:', totalProfit, weeklyProfit, monthlyProfit, dailyProfit);
+    };
+
+    fetchData();
+  }, [startDate, endDate]);
 
   return (
     <>
@@ -30,74 +93,55 @@ export default function DashboardAppPage() {
       <Container maxWidth="xl">
         <Typography variant="h4" sx={{ mb: 5 }}>
           Bem vindo de volta!
+          <input type="date" name="date" id="startDate" value={startDate} onChange={handleStartDateChange} />
+          <input type="date" name="date" id="endDate" value={endDate} onChange={handleEndDateChange} />
         </Typography>
 
         <Grid container spacing={3}>
           <Grid item xs={12} sm={6} md={3}>
-            <AppWidgetSummary title="Faturamento diário" total={714000} icon={'solar:health-bold'} />
+            <AppWidgetSummary title="Faturamento Total" total={totalProfit} icon={'solar:chat-round-money-bold'} />
           </Grid>
 
           <Grid item xs={12} sm={6} md={3}>
-            <AppWidgetSummary title="Faturamento semanal" total={1352831} color="info" icon={'solar:health-bold'} />
+            <AppWidgetSummary
+              title="Faturamento Semanal"
+              total={weeklyProfit}
+              color="info"
+              icon={'solar:chat-round-money-bold'}
+            />
           </Grid>
 
           <Grid item xs={12} sm={6} md={3}>
-            <AppWidgetSummary title="Faturamento mensal" total={1723315} color="warning" icon={'solar:health-bold'} />
+            <AppWidgetSummary
+              title="Faturamento Mensal"
+              total={monthlyProfit}
+              color="warning"
+              icon={'solar:chat-round-money-bold'}
+            />
           </Grid>
 
           <Grid item xs={12} sm={6} md={3}>
-            <AppWidgetSummary title="Faturamento anual" total={234} color="error" icon={'solar:health-bold'} />
+            <AppWidgetSummary
+              title="Faturamento Diario"
+              total={dailyProfit}
+              color="error"
+              icon={'solar:chat-round-money-bold'}
+            />
           </Grid>
 
           <Grid item xs={12} md={6} lg={8}>
             <AppWebsiteVisits
               title="Pacientes atendidos"
               // subheader="(+43%) do que no ano passado"
-              chartLabels={[
-                '01/01/2003',
-                '02/01/2003',
-                '03/01/2003',
-                '04/01/2003',
-                '05/01/2003',
-                '06/01/2003',
-                '07/01/2003',
-                '08/01/2003',
-                '09/01/2003',
-                '10/01/2003',
-                '11/01/2003',
-              ]}
-              chartData={[
-                {
-                  name: '2021',
-                  type: 'line',
-                  fill: 'solid',
-                  data: [23, 11, 22, 27, 13, 22, 37, 21, 44, 22, 30],
-                },
-                {
-                  name: '2022',
-                  type: 'line',
-                  fill: 'solid',
-                  data: [44, 55, 41, 67, 22, 43, 21, 41, 56, 27, 43],
-                },
-                {
-                  name: '2023',
-                  type: 'line',
-                  fill: 'solid',
-                  data: [30, 25, 36, 30, 45, 35, 64, 52, 59, 36, 39],
-                },
-              ]}
+              chartLabels={examinedPatients.labels}
+              chartData={examinedPatients.aggregate}
             />
           </Grid>
 
           <Grid item xs={12} md={6} lg={4}>
             <AppCurrentVisits
               title="Principais fontes de receita"
-              chartData={[
-                { label: 'Ultrassonografia', value: 4344 },
-                { label: 'Eletrocardiograma', value: 5435 },
-                { label: 'Mamografia', value: 1443 },
-                { label: 'Radiografia', value: 4443 },
-              ]}
+              chartData={profitPerExam}
               chartColors={[
                 theme.palette.primary.main,
                 theme.palette.info.main,
@@ -191,6 +235,10 @@ export default function DashboardAppPage() {
               }))}
             />
           </Grid> */}
+
+          <Grid item xs={12} md={6} lg={4}>
+            <ExamesList data={patients} />
+          </Grid>
         </Grid>
       </Container>
     </>
