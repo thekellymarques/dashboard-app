@@ -30,6 +30,17 @@ export function fData(number) {
   return result(format, '.0');
 }
 
+export function formatCurrencyBRL(amount) {
+  const formatter = new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+  });
+
+  return formatter.format(amount);
+}
+
 function result(format, key = '.00') {
   const isInteger = format.includes(key);
 
